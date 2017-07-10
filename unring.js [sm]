@@ -1,0 +1,347 @@
+math = require('./kmath.js');
+//require("./complex.js");
+fs = require("fs");
+require('./nifti.js');
+var FFT = require("fft");
+
+
+
+var filename = 't2zoom_test.nii'
+
+
+
+var outfile = 't2zoom_unring.nii'
+
+var raw = fs.readFileSync(filename);
+
+var nii = parse(raw);
+
+
+
+var txtfilename = 'gibbs.txt';
+
+//line = new Float64Array([1.0846,0.91862,1.0764,0.93018,1.0619,0.9471,1.0432,0.96698,1.0228,0.98706,1.0037,1.0046,0.98822,1.0175,0.97822,1.0244,0.97454,1.025,0.97694,1.0199,0.98424,1.0109,0.9945,0.99999,1.0054,0.98964,1.0147,0.98194,1.0204,0.97837,1.0216,0.9796,1.018,0.98534,1.0104,0.99443,1.0003,1.0051,0.98971,1.0151,0.98073,1.0225,0.9753,1.0256,0.97475,1.0235,0.97963,1.016,0.98962,1.0038,1.0036,0.98841,1.0199,0.97172,1.0365,0.95579,1.0513,0.9425,1.0627,0.93329,1.0695,0.92898,1.0713,0.92969,-0.93177,-1.0651,-0.93883,-1.0565,-0.94867,-1.0458,-0.95992,-1.0343,-0.97127,-1.0234,-0.98164,-1.0138,-0.99033,-1.0061,-0.99704,-1.0003,-1.0018,-0.99641,-1.005,-0.99392,-1.0069,-0.99246,-1.008,-0.99173,-1.0084,-0.99158,-1.0083,-0.99201,-1.0075,-0.99318,-1.0059,-0.99523,-1.0034,-0.99823,-0.99995,-1.0021,-0.99583,-1.0063,-0.99155,-1.0104,-0.98784,-1.0135,-0.98556,-1.0148,-0.98556,-1.0134,-0.98851,-1.0088,-0.99472,-1.001,-1.0041,-0.99024,-1.016,-0.97746,-1.0293,-0.96387,-1.0428,-0.95094,-1.0548,-0.94014,-1.064,-0.93276,-1.0693,-0.92969,0.9299,1.0687,0.93376,1.0627,0.94171,1.0531,0.95276,1.041,0.96555,1.0279,0.97864,1.0151,0.99066,1.0041,1.0005,0.99555,1.0076,0.99,1.0117,0.9874,1.0129,0.98737,1.0119,0.98923,1.0094,0.99221,1.0061,0.99562,1.0027,0.99889,0.99964,1.0017,0.99711,1.0039,0.99514,1.0057,0.99364,1.007,0.99251,1.0079,0.99175,1.0084,0.99154,1.0083,0.99222,1.0069,0.99429,1.004,0.99823,0.99897,1.0044,0.99159,1.013,0.98194,1.0236,0.97051,1.0356,0.95822,1.0479,0.94634,1.059,0.93636,1.0675,0.92969,-0.92798,-1.0725,-0.9283,-1.0696,-0.93385,-1.0615,-0.94424,-1.0491,-0.95841,-1.0336,-0.9747,-1.017,-0.99113,-1.0012,-1.0056,-0.98838,-1.0165,-0.97987,-1.0225,-0.97654,-1.0232,-0.97838,-1.019,-0.98454,-1.0112,-0.99348,-1.0016,-1.0032,-0.99222,-1.0118,-0.98499,-1.0173,-0.98141,-1.0187,-0.98222,-1.0157,-0.98728,-1.0089,-0.99553,-0.99967,-1.0052,-0.99004,-1.0142,-0.98226,-1.0203,-0.97839,-1.0216,-0.97992,-1.017,-0.9875,-1.0065,-1.0007,-0.99092,-1.0183,-0.97204,-1.0379,-0.95237,-1.0569,-0.93464,-1.0727,-0.92141,-1.0829,-0.91465,0.91406]);
+//line = new Float64Array([0.91862,1.0764,0.93018,1.0619,0.9471,1.0432,0.96698,1.0228,0.98706,1.0037,1.0046,0.98822,1.0175,0.97822,1.0244,0.97454,1.025,0.97694,1.0199,0.98424,1.0109,0.9945,0.99999,1.0054,0.98964,1.0147,0.98194,1.0204,0.97837,1.0216,0.9796,1.018,0.98534,1.0104,0.99443,1.0003,1.0051,0.98971,1.0151,0.98073,1.0225,0.9753,1.0256,0.97475,1.0235,0.97963,1.016,0.98962,1.0038,1.0036,0.98841,1.0199,0.97172,1.0365,0.95579,1.0513,0.9425,1.0627,0.93329,1.0695,0.92898,1.0713,0.92969,-0.93177,-1.0651,-0.93883,-1.0565,-0.94867,-1.0458,-0.95992,-1.0343,-0.97127,-1.0234,-0.98164,-1.0138,-0.99033,-1.0061,-0.99704,-1.0003,-1.0018,-0.99641,-1.005,-0.99392,-1.0069,-0.99246,-1.008,-0.99173,-1.0084,-0.99158,-1.0083,-0.99201,-1.0075,-0.99318,-1.0059,-0.99523,-1.0034,-0.99823,-0.99995,-1.0021,-0.99583,-1.0063,-0.99155,-1.0104,-0.98784,-1.0135,-0.98556,-1.0148,-0.98556,-1.0134,-0.98851,-1.0088,-0.99472,-1.001,-1.0041,-0.99024,-1.016,-0.97746,-1.0293,-0.96387,-1.0428,-0.95094,-1.0548,-0.94014,-1.064,-0.93276,-1.0693,-0.92969,0.9299,1.0687,0.93376,1.0627,0.94171,1.0531,0.95276,1.041,0.96555,1.0279,0.97864,1.0151,0.99066,1.0041,1.0005,0.99555,1.0076,0.99,1.0117,0.9874,1.0129,0.98737,1.0119,0.98923,1.0094,0.99221,1.0061,0.99562,1.0027,0.99889,0.99964,1.0017,0.99711,1.0039,0.99514,1.0057,0.99364,1.007,0.99251,1.0079,0.99175,1.0084,0.99154,1.0083,0.99222,1.0069,0.99429,1.004,0.99823,0.99897,1.0044,0.99159,1.013,0.98194,1.0236,0.97051,1.0356,0.95822,1.0479,0.94634,1.059,0.93636,1.0675,0.92969,-0.92798,-1.0725,-0.9283,-1.0696,-0.93385,-1.0615,-0.94424,-1.0491,-0.95841,-1.0336,-0.9747,-1.017,-0.99113,-1.0012,-1.0056,-0.98838,-1.0165,-0.97987,-1.0225,-0.97654,-1.0232,-0.97838,-1.019,-0.98454,-1.0112,-0.99348,-1.0016,-1.0032,-0.99222,-1.0118,-0.98499,-1.0173,-0.98141,-1.0187,-0.98222,-1.0157,-0.98728,-1.0089,-0.99553,-0.99967,-1.0052,-0.99004,-1.0142,-0.98226,-1.0203,-0.97839,-1.0216,-0.97992,-1.017,-0.9875,-1.0065,-1.0007,-0.99092,-1.0183,-0.97204,-1.0379,-0.95237,-1.0569,-0.93464,-1.0727,-0.92141,-1.0829,-0.91465,0.91406]);
+line = new Float64Array([1.203,0.86933,1.0476,1.0217,0.94044,1.0609,0.96594,0.99655,1.0331,0.95737,1.0304,0.99514,0.97953,1.0335,0.97097,1.0106,1.0119,0.97285,1.0282,0.98484,0.99517,1.0217,0.97283,1.019,0.99849,0.98368,1.0257,0.97793,1.0075,1.0107,0.97651,1.0244,0.98684,0.99524,1.0204,0.974,1.0186,0.99824,0.98369,1.0266,0.97618,1.009,1.0109,0.97389,1.0288,0.98291,0.9961,1.0242,0.9663,1.0268,0.99434,0.97957,1.039,0.96021,1.0202,1.0131,0.95392,1.0622,0.95054,1.0051,1.0625,0.86365,1.1964,0.77344,-0.78058,-1.1786,-0.88307,-1.0514,-1.0023,-0.96596,-1.042,-0.96865,-1.0115,-1.0079,-0.98039,-1.0212,-0.98582,-1.003,-1.0075,-0.98651,-1.0134,-0.99179,-1.0004,-1.0069,-0.98907,-1.0104,-0.99415,-0.99903,-1.0073,-0.9894,-1.0095,-0.99572,-0.99708,-1.0091,-0.9885,-1.0088,-0.99803,-0.99381,-1.012,-0.98746,-1.0072,-1.002,-0.98907,-1.0153,-0.98741,-1.0035,-1.0082,-0.9831,-1.0181,-0.98962,-0.99661,-1.0171,-0.97622,-1.0193,-0.99574,-0.98478,-1.03,-0.96819,-1.0172,-1.0098,-0.96171,-1.0541,-0.95483,-1.0067,-1.056,-0.87163,-1.1911,-0.77344,0.7754,1.1862,0.87701,1.0528,1.0061,0.95896,1.0486,0.9659,1.0091,1.0141,0.97359,1.025,0.98684,0.99765,1.0143,0.98172,1.0138,0.99604,0.99379,1.0124,0.98747,1.0073,1.0003,0.99298,1.0101,0.99129,1.0039,1.0021,0.99322,1.0085,0.9933,1.0024,1.0028,0.99317,1.0081,0.99382,1.0016,1.0039,0.99186,1.0092,0.9936,1.0004,1.0066,0.98862,1.0115,0.99387,0.99694,1.0123,0.98303,1.014,0.99675,0.98864,1.0232,0.97442,1.0148,1.007,0.96826,1.0471,0.95863,1.0082,1.0499,0.87922,1.1859,0.77344,-0.77008,-1.1942,-0.87048,-1.0544,-1.0104,-0.95084,-1.0563,-0.96255,-1.0061,-1.0221,-0.96466,-1.0302,-0.98824,-0.99012,-1.0243,-0.97455,-1.0143,-1.0028,-0.98308,-1.0216,-0.98471,-1.0019,-1.0116,-0.98167,-1.0155,-0.99505,-0.99247,-1.0155,-0.98479,-1.007,-1.0045,-0.98673,-1.0148,-0.99153,-0.99774,-1.0116,-0.98541,-1.0096,-1.0007,-0.98931,-1.0149,-0.98915,-1.0005,-1.0107,-0.98372,-1.0128,-0.9985,-0.98819,-1.0196,-0.98342,-1.0031,-1.0147,-0.97319,-1.0249,-0.99318,-0.97914,-1.0443,-0.95221,-1.0205,-1.0378,-0.88539,-1.1885,-0.76356,0.75781]);
+ 
+test1d(line);
+//unring(nii,{},function() { fs.writeFileSync(outfile, raw); } );
+
+
+
+
+function unring(nii,params,done)
+{
+
+    var data = nii.data;
+    var sz = nii.sizes;
+    
+    // happy unringing
+    
+    var fft = new FFT.complex(4,false);
+
+    //var sig = [one,zero,zero,zero,zero,zero,zero,zero];
+
+    /*
+    var sig = new Float64Array([1,0,0,0,0,0,0,0,1,0,-1,0,1,0,-1,0]);
+    var sig_trans = new Float64Array(2*8);
+
+    for(var i = 0; i < 8; i++){
+        sig[i] = 0;
+    }
+
+    sig[0] = 1;
+
+
+    fft.simple(sig_trans,sig.slice(8,16),'complex');
+    for(var i = 0; i < sig.length; i++){
+        console.log(sig_trans[i]);
+    }
+    console.log("adasdas");
+    */
+        
+    var sig = new Float64Array([0,0,.2,0,-.05,0,-.25,0,-.5,0,.15,0,.15,0,-.1,0]);
+    
+
+    done();
+    
+
+}
+
+function unring2d(){
+    
+
+}
+
+
+
+
+function test1d(data){
+    //var data = nii.data;
+    //var sizes = nii.sizes;
+    
+    var orig = 'origline.nii';
+    var unrung = 'unrungline.nii';
+    
+    var line = new Float64Array(data.length * 2);
+    for(var i = 0; i < data.length; i++){
+        line[2*i] = data[i];
+        line[2*i+1] = 0;
+    }
+    fs.writeFileSync(orig,line.toString());
+    
+    unring1d(line,data.length,1,128,2,5,function(){});
+
+    fs.writeFileSync(unrung,line.toString());
+}
+
+
+/*
+perform the unringing algorithm on each row of a 2-d array
+ARGS: 
+    data     - the numlines-by-n image array
+    n        - number of pixels per row
+    numlines - number of rows to analzye
+    nsh      - number of subvoxel shift values to try in one direction (total # shifts will be 2*nsh+1)
+    minW     - min of window
+    maxW     - max of window
+    callback - callback function
+*/
+function unring1d(data, n, numlines, nsh, minW, maxW, callback){
+
+    //create the length variables
+    var totalShifts = 2*nsh+1;
+    var totalSamps = 2*n;
+    
+    //create the necessary variables
+    var fft = new FFT.complex(n,false);
+    var ifft = new FFT.complex(n,true);
+
+    //this variable holds the frequencydomain version of a row, so that it can be shifted
+    var rowFreq = new Float64Array(totalSamps);
+    var rowFreqShift = new Float64Array(totalSamps);
+    var rowTimeShift = new Float64Array(totalSamps);
+
+    //these variables hold the rows shifted in time and freq domains
+    var timeShifts = new Float64Array(totalSamps*totalShifts);
+    //var freqShifts = new Float64Array(totalSamps*totalShifts);
+
+    //these arrays hold the measure of ringing at successive shifts to the right and leftDiffs
+    //ringing is measured as the sum of the pairwise differences of adjacent pixels
+    var rightDiffs = new Float64Array(totalShifts);
+    var leftDiffs = new Float64Array(totalShifts);
+
+
+    //create the shift array
+    var shifts = new Float64Array(totalShifts);
+    shifts[0] = 0;
+    for(var i = 0; i < nsh; i++){
+        shifts[i+1] = (i+1);
+        shifts[i+1+nsh] = (-1)*(i+1);
+    }
+    
+    //the angle corresponding to a certain linear shift
+    var phi = new Float64Array(2);
+    //the angle that increases for each successive frequencz
+    var ang = new Float64Array(2);
+
+
+    var maxn;
+    if(n%2 == 1) {
+        maxn = (n-1)/2;
+    } else {
+        maxn = n/2-1;
+    }
+
+    //apply shift in frequency domain, then in time domain
+    for (var line = 0; line < numlines; line++){
+
+        for(var i = 0; i < totalSamps; i++){
+            timeShifts[i] = data[line*totalSamps+i];
+        }
+
+        fft.simple(rowFreq,data.slice(line*totalSamps,(line+1)*totalSamps),'complex');
+        
+        //shift the frequency data by each value in shifts
+        //s is shift number
+        for(var s = 1; s < shifts.length; s++){
+
+            //set the angle values
+            var p = Math.PI * shifts[s]/(n*nsh);
+            phi[0] = Math.cos(p);
+            phi[1] = Math.sin(p);
+            ang[0] = 1;
+            ang[1] = 0;
+            
+            //set the dc term and nyquist frequency
+            rowFreqShift[0] = rowFreq[0];
+            rowFreqShift[1] = rowFreq[1];
+            
+            //if the Nquist frequency is included, set it to 0
+            if(n%2==0) {
+                rowFreqShift[n] = 0;
+                rowFreqShift[ n + 1] = 0;
+            }
+            
+            var tmp;
+            for(var i =0; i < maxn; i++){
+                
+                tmp = ang[0];
+                ang[0] = phi[0]*ang[0] - phi[1]*ang[1];
+                ang[1] = tmp*phi[1] + phi[0]*ang[1];
+
+                var L = i+1;
+                rowFreqShift[2*L] = ang[0]*rowFreq[2*L] - ang[1]*rowFreq[2*L+1];
+                rowFreqShift[2*L+1] = ang[0]*rowFreq[2*L+1] + ang[1]*rowFreq[2*L];
+                L = n-1-i;
+                rowFreqShift[2*L] = ang[0]*rowFreq[2*L] - ang[1]*rowFreq[2*L+1];
+                rowFreqShift[2*L+1] = ang[0]*rowFreq[2*L+1] + ang[1]*rowFreq[2*L];
+
+            }//for i (freq bin to shift)
+
+            //perform the inverse fft to get signal shifted in time domain
+            ifft.simple(rowTimeShift,rowFreqShift,'complex');
+            //scale the ifft as zou copy it to the dictionary
+            //for(var i = 0; i < totalSamps; i++){
+            //    rowTimeShift[i]=rowTimeShift[i];
+            //}
+            
+            //copy the time shifted array into the dictionary of shifted values
+            //move this to the loop above
+            for(var i = 0; i < totalSamps; i++){
+                timeShifts[s*totalSamps + i] = rowTimeShift[i] / n;
+            }
+
+        }//for s (shift number)
+
+        //sum the adjacent differences to get the initial ringing metrics for pixel 0
+        for(var s = 0; s<totalShifts; ++s){
+            var offset = s*totalSamps;
+            rightDiffs[s] = 0;
+            leftDiffs[s] = 0;
+            var pix = 0;
+            //sum the differences in the window for 
+            for(var d = minW; d <= maxW; d++){
+                
+                rightIdx1 = (2*(pix+d) + totalSamps)%totalSamps;
+                rightIdx2 = (rightIdx1+2)%totalSamps;
+                leftIdx1 = (2*(pix-d) + totalSamps)%totalSamps;
+                leftIdx2 = (leftIdx1-2)%totalSamps;
+                
+                //manhattan distance
+                /*
+                rightDiffs[s] += Math.abs( timeShifts[offset + rightIdx1] - timeShifts[offset + rightIdx2]);
+                rightDiffs[s] += Math.abs( timeShifts[offset + rightIdx1 + 1] - timeShifts[offset + rightIdx2 + 1]);
+            
+                leftDiffs[s] += Math.abs( timeShifts[offset + leftIdx1] - timeShifts[offset + leftIdx2]);
+                leftDiffs[s] += Math.abs( timeShifts[offset + leftIdx1 + 1] - timeShifts[offset + leftIdx2 + 1]);
+                */
+
+                //polar distances
+                var re = Math.abs( timeShifts[offset + rightIdx1] - timeShifts[offset + rightIdx2]);
+                var im = Math.abs( timeShifts[offset + rightIdx1 + 1] - timeShifts[offset + rightIdx2 + 1]);
+                rightDiffs[s] += Math.sqrt(re*re+im*im);
+
+                re = Math.abs( timeShifts[offset + leftIdx1] - timeShifts[offset + leftIdx2]);
+                im = Math.abs( timeShifts[offset + leftIdx1 + 1] - timeShifts[offset + leftIdx2 + 1]);
+                leftDiffs[s] += Math.sqrt(re*re+im*im);
+
+            }//for d
+
+        }//for s
+
+        //for each pixel find the minimal ringing measure & shift to that ringing measure
+        for(var pix = 0; pix < n; pix++){
+            var minDiff = 99999999999;
+            var minIndex = 0;
+
+            for(var s = 0; s< totalShifts; s++){
+
+                var offset = s*totalSamps;
+                
+                //console.log(rightDiffs);
+                
+                if (rightDiffs[s] < minDiff){
+                    minDiff = rightDiffs[s];
+                    minIndex = s;
+                } if (leftDiffs[s] < minDiff){
+                    minDiff = leftDiffs[s];
+                    minIndex = s;
+                }
+
+                //get the ringing measure for the successive pixel by removing the distance measure on one end and adding the distance measure on the other end.
+                var oldRight1 = (2*(pix+minW) + totalSamps) % totalSamps;
+                var oldRight2 = (oldRight1 + 2) % totalSamps;
+                var newRight1 = (2*(pix+maxW+1) + totalSamps) % totalSamps;
+                var newRight2 = (newRight1 + 2) % totalSamps;
+
+                var oldLeft1 = (2*(pix - maxW) + totalSamps)%totalSamps;
+                var oldLeft2 = (oldLeft1-2)%totalSamps;
+                var newLeft1 = (2*(pix - minW - 1) + totalSamps)%totalSamps;
+                var newLeft2 = (newLeft1-2)%totalSamps;
+                
+                //manhattan distance
+                //subtract off old bounds
+                /*
+                rightDiffs[s] -= Math.abs( timeShifts[offset + oldRight1] - timeShifts[offset + oldRight2]);
+                rightDiffs[s] -= Math.abs( timeShifts[offset + oldRight1 + 1] - timeShifts[offset + oldRight2 + 1]);
+                leftDiffs[s] -= Math.abs( timeShifts[offset + oldLeft1] - timeShifts[offset + oldLeft2]);
+                leftDiffs[s] -= Math.abs( timeShifts[offset + oldLeft1 + 1] - timeShifts[offset + oldLeft2 + 1]);
+                
+                //add on new bounds
+                rightDiffs[s] += Math.abs( timeShifts[offset + newRight1] - timeShifts[offset + newRight2]);
+                rightDiffs[s] += Math.abs( timeShifts[offset + newRight1 + 1] - timeShifts[offset + newRight2 + 1]);
+                leftDiffs[s] += Math.abs( timeShifts[offset + newLeft1] - timeShifts[offset + newLeft2]);
+                leftDiffs[s] += Math.abs( timeShifts[offset + newLeft1 + 1] - timeShifts[offset + newLeft2 + 1]);
+                */
+                
+                //polar distance
+                var re = Math.abs( timeShifts[offset + oldRight1] - timeShifts[offset + oldRight2]);
+                var im = Math.abs( timeShifts[offset + oldRight1 + 1] - timeShifts[offset + oldRight2 + 1]);
+                rightDiffs[s] -= Math.sqrt(re*re+im*im);
+
+                re = Math.abs( timeShifts[offset + oldLeft1] - timeShifts[offset + oldLeft2]);
+                im = Math.abs( timeShifts[offset + oldLeft1 + 1] - timeShifts[offset + oldLeft2 + 1]);
+                leftDiffs[s] -= Math.sqrt(re*re+im*im);
+
+
+                //add on new bounds
+                re = Math.abs( timeShifts[offset + newRight1] - timeShifts[offset + newRight2]);
+                im= Math.abs( timeShifts[offset + newRight1 + 1] - timeShifts[offset + newRight2 + 1]);
+                rightDiffs[s] += Math.sqrt(re*re+im*im);
+                
+                re = Math.abs( timeShifts[offset + newLeft1] - timeShifts[offset + newLeft2]);
+                im = Math.abs( timeShifts[offset + newLeft1 + 1] - timeShifts[offset + newLeft2 + 1]);
+                leftDiffs[s] += Math.sqrt(re*re+im*im);
+            }//for s
+            
+            //perform ye olde reinterpolation
+            var dif0re = timeShifts[minIndex*totalSamps + (2*(pix - 1) + totalSamps)%totalSamps];
+            var dif1re = timeShifts[minIndex*totalSamps + (2*pix + totalSamps)%totalSamps];
+            var dif2re = timeShifts[minIndex*totalSamps + (2*(pix + 1) + totalSamps)%totalSamps];
+
+            var dif0im = timeShifts[minIndex*totalSamps + (2*(pix - 1) + totalSamps +1 )%totalSamps];
+            var dif1im = timeShifts[minIndex*totalSamps + (2*pix + totalSamps +1)%totalSamps];
+            var dif2im = timeShifts[minIndex*totalSamps + (2*(pix + 1) + totalSamps +1)%totalSamps];
+            
+            var sh = shifts[minIndex]/(2*nsh);
+            
+            console.log(minIndex);
+            
+            var scale = 1/n;
+            if(sh>0){
+                data[line*totalSamps+2*pix] = (dif1re*(1-sh) + dif0re*sh) ;
+                data[line*totalSamps+2*pix +1] = (dif1im*(1-sh) + dif0im*sh) ;
+            }else{
+                sh= 0-sh;
+                data[line*totalSamps+2*pix] = (dif1re*(1-sh) + dif2re*sh) ;
+                data[line*totalSamps+2*pix +1] = (dif1im*(1-sh) + dif2im*sh) ;
+            }
+
+        }//for pix
+
+    }//for line
+}
+
+
+
