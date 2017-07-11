@@ -19,7 +19,7 @@ var FFT = require("fft");
 
 
 //RUN FROM COMMAND LINE WITH NODE
-
+/*
     var path_in = process.argv[2];
     var path_out = process.argv[3];
 
@@ -27,10 +27,10 @@ var FFT = require("fft");
 run_unring(path_in,path_out,30,1,4,function(){});
 
 console.log('done!!');
+*/
 
 
 
-/*
 //RUN AS SCRIPT
 
 
@@ -45,7 +45,7 @@ var outfile = 't2zoom_unring.nii'
 
 //perform the unringing
 run_unring(filename,outfile,30,1,4,function(){});
-*/
+
 
 
 function run_unring(filename,outfile,nsh,minW,maxW,done)
@@ -65,18 +65,19 @@ function run_unring(filename,outfile,nsh,minW,maxW,done)
     var unrung_int16 = new Int16Array(sz[0]*sz[1]);
     
     for(var slice = 0; slice < sz[2]; slice++){
-        
+        var st = performance.now();
         var offset=slice*nii.sizes[0]*nii.sizes[1];
         
         raw_slice = nii.data.slice(offset,offset+nii.sizes[0]*nii.sizes[1]);
-
+        
         unring2d(raw_slice,false,unrung_slice,sz,nsh,minW,maxW);
-
+        
         //convert unrung data to int16 for output
         for(var i = 0; i < unrung_int16.length; i++){
             nii.data[i+offset] = unrung_slice[2*i] + .5;
         }
-            
+        var en = performance.now();
+        console.log('total time:',en-st);
         console.log(slice);
         
     }//for slice
@@ -309,11 +310,11 @@ function unring1d(data, n, numlines, nsh, minW, maxW, callback){
     var end_time;
     var start_time;
     var shift_time= 0;
-    var setup_time= 0;
+    var total_time= 0;
     var calc_time= 0;
-    var reinterp_time = 0;
-*/
+    */
     
+   
     //create the length variables
     var totalShifts = 2*nsh+1;
     var totalSamps = 2*n;
@@ -342,7 +343,7 @@ function unring1d(data, n, numlines, nsh, minW, maxW, callback){
     shifts[0] = 0;
     for(var i = 0; i < nsh; i++){
         shifts[i+1] = (i+1);
-        shifts[i+1+nsh] = (-1)*(i+1);
+        shifts[i+1+nsh] = 0-(i+1);
     }
     
     //the angle corresponding to a certain linear shift
@@ -351,35 +352,59 @@ function unring1d(data, n, numlines, nsh, minW, maxW, callback){
     var ang = new Float64Array(2);
 
 
-    var maxn;
+    //var maxn;
     if(n%2 == 1) {
-        maxn = (n-1)/2;
+        var maxn = (n-1)/2;
     } else {
-        maxn = n/2-1;
+        var maxn = n/2-1;
     }
     
-    //DEBUG
-    //start_time = (new Date()).getTime();
+    //generate the frequency ramp
+    var freqRamps = new Float64Array(2*maxn*shifts.length);
+    var ramplen = 2*maxn;
+    for(s = 1; s < shifts.length; s++){
+        var p =  shifts[s] * Math.PI / (n*nsh);  
+        phi[0] = Math.cos(p);
+        phi[1] = Math.sin(p);
+        ang[0] = 1;
+        ang[1] = 0;
+        for(var i =0; i < maxn; i++){
+            var tmp = ang[0];
+            ang[0] = phi[0]*ang[0] - phi[1]*ang[1];
+            ang[1] = tmp*phi[1] + phi[0]*ang[1];
+            freqRamps[s*ramplen + 2*i] = ang[0];
+            freqRamps[s*ramplen + 2*i + 1] = ang[1];
+        }
+    }
 
     //apply shift in frequency domain, then in time domain
     for (var line = 0; line < numlines; line++){
-
+        var line_idx = line*totalSamps;
+         //DEBUG
+        //start_time = performance.now();
         for(var i = 0; i < totalSamps; i++){
-            timeShifts[i] = data[line*totalSamps+i];
+            timeShifts[i] = data[line_idx+i];
         }
+        
+        
 
-        fft.simple(rowFreq,data.slice(line*totalSamps,(line+1)*totalSamps),'complex');
+        
+        fft.simple(rowFreq,data.slice(line_idx,line_idx+totalSamps),'complex');
         
         //shift the frequency data by each value in shifts
         //s is shift number
+        //var angle_scale = Math.PI /(n*nsh);
         for(var s = 1; s < shifts.length; s++){
 
+
+            /*
             //set the angle values
-            var p = Math.PI * shifts[s]/(n*nsh);
+            var p =  shifts[s] * Math.PI /(n*nsh);
             phi[0] = Math.cos(p);
             phi[1] = Math.sin(p);
             ang[0] = 1;
             ang[1] = 0;
+            */
             
             //set the dc term and nyquist frequency
             rowFreqShift[0] = rowFreq[0];
@@ -393,21 +418,34 @@ function unring1d(data, n, numlines, nsh, minW, maxW, callback){
             
             var tmp;
             for(var i =0; i < maxn; i++){
-                            
-                tmp = ang[0];
+                var L = (i+1);
+                var FR = 2*i;
+                /*
+                var tmp = ang[0];
                 ang[0] = phi[0]*ang[0] - phi[1]*ang[1];
                 ang[1] = tmp*phi[1] + phi[0]*ang[1];
+                if(Math.abs(ang[0]-freqRamps[s*ramplen + FR]) > 0.00000001 || Math.abs(ang[1]-freqRamps[s*ramplen + FR + 1])>0.00000001){
+                    console.log('wrong!');
+                }
+                */
 
-                var L = i+1;
 
-                rowFreqShift[2*L] = ang[0]*rowFreq[2*L] - ang[1]*rowFreq[2*L+1];
-                rowFreqShift[2*L+1] = ang[0]*rowFreq[2*L+1] + ang[1]*rowFreq[2*L];
+                rowFreqShift[2*L] = freqRamps[s*ramplen + FR]*rowFreq[2*L] - freqRamps[s*ramplen + FR + 1]*rowFreq[2*L+1];
+                rowFreqShift[2*L+1] = freqRamps[s*ramplen + FR]*rowFreq[2*L+1] + freqRamps[s*ramplen + FR + 1]*rowFreq[2*L];
                 
-                L = n-1-i;
+                //rowFreqShift[2*L] = ang[0]*rowFreq[2*L] - ang[1]*rowFreq[2*L+1];
+                //rowFreqShift[2*L+1] = ang[0]*rowFreq[2*L+1] + ang[1]*rowFreq[2*L];
+                
 
-                rowFreqShift[2*L] = ang[0]*rowFreq[2*L] + ang[1]*rowFreq[2*L+1];
-                rowFreqShift[2*L+1] = ang[0]*rowFreq[2*L+1] - ang[1]*rowFreq[2*L];
 
+                L = (n-1-i);
+                rowFreqShift[2*L] = freqRamps[s*ramplen + FR]*rowFreq[2*L] + freqRamps[s*ramplen + FR + 1]*rowFreq[2*L+1];
+                rowFreqShift[2*L+1] = freqRamps[s*ramplen + FR]*rowFreq[2*L+1] - freqRamps[s*ramplen + FR + 1]*rowFreq[2*L];
+                
+                
+                //rowFreqShift[2*L] = ang[0]*rowFreq[2*L] + ang[1]*rowFreq[2*L+1];
+                //rowFreqShift[2*L+1] = ang[0]*rowFreq[2*L+1] - ang[1]*rowFreq[2*L];
+                
             }//for i (freq bin to shift)
             
 
@@ -420,32 +458,25 @@ function unring1d(data, n, numlines, nsh, minW, maxW, callback){
             //move this to the loop above
             for(var i = 0; i < totalSamps; i++){
                 timeShifts[s*totalSamps + i] = rowTimeShift[i] / n;
-
             }
-
-
         }//for s (shift number)
 
-        //DEBUG
-        //end_time = (new Date()).getTime();
-       //shift_time += end_time-start_time;
+        
 
-
-        //DEBUG
-        //start_time = (new Date()).getTime();
 
         //sum the adjacent differences to get the initial ringing metrics for pixel 0
         for(var s = 0; s<totalShifts; ++s){
             var offset = s*totalSamps;
             rightDiffs[s] = 0;
             leftDiffs[s] = 0;
-            var pix = 0;
+            //var pix = 0;
             //sum the differences in the window for 
             for(var d = minW; d <= maxW; d++){
                 
-                var rightIdx1 = (2*(pix+d) + totalSamps)%totalSamps;
+                var rightIdx1 = (2*(d) + totalSamps)%totalSamps;
                 var rightIdx2 = (rightIdx1+2)%totalSamps;
-                var leftIdx1 = (2*(pix-d) + totalSamps)%totalSamps;
+                var t = -2;
+                var leftIdx1 = (t*(d) + totalSamps)%totalSamps;
                 var leftIdx2 = (leftIdx1-2)%totalSamps;
                 
                 //manhattan distance
@@ -456,36 +487,42 @@ function unring1d(data, n, numlines, nsh, minW, maxW, callback){
                 leftDiffs[s] += Math.abs( timeShifts[offset + leftIdx1] - timeShifts[offset + leftIdx2]);
                 //leftDiffs[s] += Math.abs( timeShifts[offset + leftIdx1 + 1] - timeShifts[offset + leftIdx2 + 1]);
                 
+                var diff = timeShifts[offset + rightIdx1] - timeShifts[offset + rightIdx2];
+                if (diff>0) {
+                    rightDiffs[s] += diff;
+                } else {
+                    rightDiffs[s] -=diff;
+                }
 
-                //polar distances
-                /*
-                var re = Math.abs( timeShifts[offset + rightIdx1] - timeShifts[offset + rightIdx2]);
-                var im = Math.abs( timeShifts[offset + rightIdx1 + 1] - timeShifts[offset + rightIdx2 + 1]);
-                im = 0;
-                rightDiffs[s] += Math.sqrt(re*re+im*im);
+                diff = timeShifts[offset + leftIdx1] - timeShifts[offset + leftIdx2];
+                if (diff>0) {
+                    leftDiffs[s] += diff;
+                } else {
+                    leftDiffs[s] -= diff;
+                }
 
-                re = Math.abs( timeShifts[offset + leftIdx1] - timeShifts[offset + leftIdx2]);
-                im = Math.abs( timeShifts[offset + leftIdx1 + 1] - timeShifts[offset + leftIdx2 + 1]);
-                im = 0;
-                leftDiffs[s] += Math.sqrt(re*re+im*im);
-                */
             }//for d
 
         }//for s
-
+        
         //DEBUG
-        //end_time = (new Date()).getTime();
-        //setup_time += end_time-start_time;
+        //end_time = performance.now();
+       //shift_time += end_time-start_time;
+        
+
 
         //for each pixel find the minimal ringing measure & shift to that ringing measure
+        //DEBUG
+         //start_time = performance.now();
+         
         for(var pix = 0; pix < n; pix++){
             var minDiff = 99999999999;
             var minIndex = 0;
 
 
-            //DEBUG
-    //start_time = (new Date()).getTime();
-            for(var s = 0; s< totalShifts; s++){
+            
+        
+         for(var s = 0; s< totalShifts; s++){
 
                 var offset = s*totalSamps;
                 
@@ -513,84 +550,88 @@ function unring1d(data, n, numlines, nsh, minW, maxW, callback){
                 //manhattan distance
                 //subtract off old bounds
                 
-                rightDiffs[s] -= Math.abs( timeShifts[offset + oldRight1] - timeShifts[offset + oldRight2]);
+                //rightDiffs[s] -= Math.abs( timeShifts[offset + oldRight1] - timeShifts[offset + oldRight2]);
                 //rightDiffs[s] -= Math.abs( timeShifts[offset + oldRight1 + 1] - timeShifts[offset + oldRight2 + 1]);
-                leftDiffs[s] -= Math.abs( timeShifts[offset + oldLeft1] - timeShifts[offset + oldLeft2]);
+                //leftDiffs[s] -= Math.abs( timeShifts[offset + oldLeft1] - timeShifts[offset + oldLeft2]);
                 //leftDiffs[s] -= Math.abs( timeShifts[offset + oldLeft1 + 1] - timeShifts[offset + oldLeft2 + 1]);
                 
                 //add on new bounds
-                rightDiffs[s] += Math.abs( timeShifts[offset + newRight1] - timeShifts[offset + newRight2]);
+                //rightDiffs[s] += Math.abs( timeShifts[offset + newRight1] - timeShifts[offset + newRight2]);
                 //rightDiffs[s] += Math.abs( timeShifts[offset + newRight1 + 1] - timeShifts[offset + newRight2 + 1]);
-                leftDiffs[s]  += Math.abs( timeShifts[offset + newLeft1]  - timeShifts[offset + newLeft2]);
+                //leftDiffs[s]  += Math.abs( timeShifts[offset + newLeft1]  - timeShifts[offset + newLeft2]);
                 //leftDiffs[s] += Math.abs( timeShifts[offset + newLeft1 + 1] - timeShifts[offset + newLeft2 + 1]);
                 ////console.log(Math.abs( timeShifts[offset + newLeft1 + 1] - timeShifts[offset + newLeft2 + 1]));
                 
+                
+                //custom abs function
+                var diff = timeShifts[offset + oldRight1] - timeShifts[offset + oldRight2];
+                if(diff > 0) {
+                    rightDiffs[s] -= diff;
+                } else {
+                    rightDiffs[s] += diff;
+                }
 
-                /*
-                
-                //polar distance
-                var re = Math.abs( timeShifts[offset + oldRight1] - timeShifts[offset + oldRight2]);
-                var im = Math.abs( timeShifts[offset + oldRight1 + 1] - timeShifts[offset + oldRight2 + 1]);
-                //im = 0;
-                rightDiffs[s] -= Math.sqrt(re*re+im*im);
+                diff = timeShifts[offset + oldLeft1] - timeShifts[offset + oldLeft2];
+                if(diff > 0) {
+                    leftDiffs[s] -= diff;
+                } else {
+                    leftDiffs[s] += diff;
+                }
 
-                re = Math.abs( timeShifts[offset + oldLeft1] - timeShifts[offset + oldLeft2]);
-                im = Math.abs( timeShifts[offset + oldLeft1 + 1] - timeShifts[offset + oldLeft2 + 1]);
-                //im = 0;
-                leftDiffs[s] -= Math.sqrt(re*re+im*im);
-                
+                diff = timeShifts[offset + newRight1] - timeShifts[offset + newRight2];
+                if(diff > 0){
+                    rightDiffs[s] += diff;
+                } else {
+                    rightDiffs[s] -= diff;
+                }
 
-                //add on new bounds
-                re = Math.abs( timeShifts[offset + newRight1] - timeShifts[offset + newRight2]);
-                im= Math.abs( timeShifts[offset + newRight1 + 1] - timeShifts[offset + newRight2 + 1]);
-                //im = 0;
-                rightDiffs[s] += Math.sqrt(re*re+im*im);
-                
-                re = Math.abs( timeShifts[offset + newLeft1] - timeShifts[offset + newLeft2]);
-                im = Math.abs( timeShifts[offset + newLeft1 + 1] - timeShifts[offset + newLeft2 + 1]);
-                //im = 0;
-                leftDiffs[s] += Math.sqrt(re*re+im*im);
-                   
-                */
-                
+                diff = timeShifts[offset + newLeft1]  - timeShifts[offset + newLeft2];
+                if(diff > 0){
+                    leftDiffs[s] += diff;
+                } else {
+                    leftDiffs[s] -= diff;
+                }
             }//for s
             
-            //DEBUG
-    //end_time = (new Date()).getTime();
-            //calc_time += end_time-start_time;
+            
 
 
-
+            
             //perform ye olde reinterpolation
+            /*
             var dif0re = timeShifts[minIndex*totalSamps + (2*(pix - 1) + totalSamps)%totalSamps];
             var dif1re = timeShifts[minIndex*totalSamps + (2*pix + totalSamps)%totalSamps];
             var dif2re = timeShifts[minIndex*totalSamps + (2*(pix + 1) + totalSamps)%totalSamps];
-
+            */
+            /*
             var dif0im = timeShifts[minIndex*totalSamps + (2*(pix - 1) + totalSamps +1 )%totalSamps];
             var dif1im = timeShifts[minIndex*totalSamps + (2*pix + totalSamps +1)%totalSamps];
             var dif2im = timeShifts[minIndex*totalSamps + (2*(pix + 1) + totalSamps +1)%totalSamps];
-            
+            */
             var sh = shifts[minIndex]/(2*nsh);
-                        
-           var scale = 1/n;
+            var shift_offset = minIndex*totalSamps;
             if(sh>0){
-                data[line*totalSamps+2*pix] = (dif1re*(1-sh) + dif0re*sh) ;
-                data[line*totalSamps+2*pix +1] = (dif1im*(1-sh) + dif0im*sh) ;
+                var dif0re = timeShifts[shift_offset + (2*(pix - 1) + totalSamps)%totalSamps];
+                var dif1re = timeShifts[shift_offset + (2*pix + totalSamps)%totalSamps];
+                data[line_idx+2*pix] = (dif1re*(1-sh) + dif0re*sh) ;
+                //data[line_idx+2*pix +1] = (dif1im*(1-sh) + dif0im*sh) ;
             }else{
-                sh= 0-sh;
-                data[line*totalSamps+2*pix] = (dif1re*(1-sh) + dif2re*sh) ;
-                data[line*totalSamps+2*pix +1] = (dif1im*(1-sh) + dif2im*sh) ;
+                var dif1re = timeShifts[shift_offset + (2*pix + totalSamps)%totalSamps];
+                var dif2re = timeShifts[shift_offset + (2*(pix + 1) + totalSamps)%totalSamps];
+                //sh= 0-sh;
+                data[line_idx+2*pix] = (dif1re*(1+sh) - dif2re*sh) ;
+                //data[line_idx+2*pix +1] = (dif1im*(1-sh) + dif2im*sh) ;
             }
-
-
+            
         }//for pix
-
+        //DEBUG
+        //end_time = performance.now();
+        //calc_time += end_time-start_time;
     }//for line
 
 
-        //DEBUG
-    //console.log('shift time:',shift_time,'\nsetup_time',setup_time,'\ncalc_time:',calc_time,'\nreinterpolation time:',reinterp_time);
-
+    //DEBUG
+    //console.log('shift time:',shift_time,'calc time:',calc_time);
 }
 
 function exportnii(vec,filename){
